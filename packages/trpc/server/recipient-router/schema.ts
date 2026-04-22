@@ -9,6 +9,7 @@ import {
   ZRecipientActionAuthTypesSchema,
 } from '@documenso/lib/types/document-auth';
 import { ZRecipientLiteSchema, ZRecipientSchema } from '@documenso/lib/types/recipient';
+import type { TRecipientEngagementTimeline } from '@documenso/lib/types/recipient-engagement';
 import { zEmail } from '@documenso/lib/utils/zod';
 
 export const ZGetRecipientRequestSchema = z.object({
@@ -191,3 +192,9 @@ export const ZRejectDocumentWithTokenMutationSchema = z.object({
 export type TRejectDocumentWithTokenMutationSchema = z.infer<
   typeof ZRejectDocumentWithTokenMutationSchema
 >;
+
+export const ZGetEngagementRequestSchema = z.object({
+  recipientId: z.number(),
+});
+
+export const ZGetEngagementResponseSchema = z.custom<TRecipientEngagementTimeline>();
