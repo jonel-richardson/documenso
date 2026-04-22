@@ -20,6 +20,7 @@ export const ZGetOrganisationSessionResponseSchema = ZOrganisationSchema.extend(
       teamEmail: TeamEmailSchema.pick({ email: true }).nullable(),
       preferences: z.object({
         aiFeaturesEnabled: z.boolean(),
+        engagementTrackingEnabled: z.boolean(),
       }),
     }),
   ),
