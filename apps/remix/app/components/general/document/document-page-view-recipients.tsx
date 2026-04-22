@@ -22,9 +22,13 @@ import { match } from 'ts-pattern';
 
 import { RECIPIENT_ROLES_DESCRIPTION } from '@documenso/lib/constants/recipient-roles';
 import type { TEnvelope } from '@documenso/lib/types/envelope';
+import type { TRecipient } from '@documenso/lib/types/recipient';
 import { isDocumentCompleted } from '@documenso/lib/utils/document';
 import { formatSigningLink, isRecipientExpired } from '@documenso/lib/utils/recipients';
+import { trpc } from '@documenso/trpc/react';
 import { CopyTextButton } from '@documenso/ui/components/common/copy-text-button';
+import { RecipientEngagementBadge } from '@documenso/ui/components/recipient/recipient-engagement-badge';
+import { RecipientEngagementTimeline } from '@documenso/ui/components/recipient/recipient-engagement-timeline';
 import { SignatureIcon } from '@documenso/ui/icons/signature';
 import { AvatarWithText } from '@documenso/ui/primitives/avatar';
 import { Badge } from '@documenso/ui/primitives/badge';
@@ -37,9 +41,204 @@ import {
 } from '@documenso/ui/primitives/tooltip';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
+import { useOptionalCurrentTeam } from '~/providers/team';
+
 export type DocumentPageViewRecipientsProps = {
   envelope: TEnvelope;
   documentRootPath: string;
+};
+
+type RecipientListItemProps = {
+  recipient: TRecipient;
+  envelope: TEnvelope;
+  isFirst: boolean;
+  shouldHighlightCopyButtons: boolean;
+  setShouldHighlightCopyButtons: (value: boolean) => void;
+};
+
+const RecipientListItem = ({
+  recipient,
+  envelope,
+  isFirst,
+  shouldHighlightCopyButtons,
+  setShouldHighlightCopyButtons,
+}: RecipientListItemProps) => {
+  const { _, i18n } = useLingui();
+  const { toast } = useToast();
+  const team = useOptionalCurrentTeam();
+
+  const isEnabled = team?.preferences.engagementTrackingEnabled ?? true;
+
+  const { data: engagement, isLoading: isEngagementLoading } =
+    trpc.recipient.getEngagement.useQuery(
+      { recipientId: recipient.id },
+      { enabled: isEnabled && envelope.status !== DocumentStatus.DRAFT },
+    );
+
+  return (
+    <li className="flex items-center justify-between px-4 py-2.5 text-sm">
+      <AvatarWithText
+        avatarFallback={recipient.email.slice(0, 1).toUpperCase()}
+        primaryText={<p className="text-sm text-muted-foreground">{recipient.email}</p>}
+        secondaryText={
+          <p className="text-xs text-muted-foreground/70">
+            {_(RECIPIENT_ROLES_DESCRIPTION[recipient.role].roleName)}
+          </p>
+        }
+      />
+
+      <div className="flex flex-row items-center">
+        {envelope.status !== DocumentStatus.DRAFT &&
+          recipient.signingStatus === SigningStatus.SIGNED && (
+            <Badge variant="default">
+              {match(recipient.role)
+                .with(RecipientRole.APPROVER, () => (
+                  <>
+                    <CheckIcon className="mr-1 h-3 w-3" />
+                    <Trans>Approved</Trans>
+                  </>
+                ))
+                .with(RecipientRole.CC, () =>
+                  envelope.status === DocumentStatus.COMPLETED ? (
+                    <>
+                      <MailIcon className="mr-1 h-3 w-3" />
+                      <Trans>Sent</Trans>
+                    </>
+                  ) : (
+                    <>
+                      <CheckIcon className="mr-1 h-3 w-3" />
+                      <Trans>Ready</Trans>
+                    </>
+                  ),
+                )
+                .with(RecipientRole.SIGNER, () => (
+                  <>
+                    <SignatureIcon className="mr-1 h-3 w-3" />
+                    <Trans>Signed</Trans>
+                  </>
+                ))
+                .with(RecipientRole.VIEWER, () => (
+                  <>
+                    <MailOpenIcon className="mr-1 h-3 w-3" />
+                    <Trans>Viewed</Trans>
+                  </>
+                ))
+                .with(RecipientRole.ASSISTANT, () => (
+                  <>
+                    <UserIcon className="mr-1 h-3 w-3" />
+                    <Trans>Assisted</Trans>
+                  </>
+                ))
+                .exhaustive()}
+            </Badge>
+          )}
+
+        {envelope.status !== DocumentStatus.DRAFT &&
+          recipient.signingStatus === SigningStatus.NOT_SIGNED &&
+          isRecipientExpired(recipient) && (
+            <Badge variant="destructive">
+              <Clock8Icon className="mr-1 h-3 w-3" />
+              <Trans>Expired</Trans>
+            </Badge>
+          )}
+
+        {envelope.status !== DocumentStatus.DRAFT &&
+          recipient.signingStatus === SigningStatus.NOT_SIGNED &&
+          !isRecipientExpired(recipient) &&
+          (recipient.expiresAt ? (
+            <PopoverHover
+              trigger={
+                <Badge variant="secondary">
+                  <Clock className="mr-1 h-3 w-3" />
+                  <Trans>Pending</Trans>
+                </Badge>
+              }
+            >
+              <p className="text-xs text-muted-foreground">
+                <Trans>
+                  Expires{' '}
+                  {recipient.expiresAt
+                    ? i18n.date(recipient.expiresAt, DateTime.DATETIME_MED)
+                    : 'N/A'}
+                </Trans>
+              </p>
+            </PopoverHover>
+          ) : (
+            <Badge variant="secondary">
+              <Clock className="mr-1 h-3 w-3" />
+              <Trans>Pending</Trans>
+            </Badge>
+          ))}
+
+        {envelope.status !== DocumentStatus.DRAFT &&
+          recipient.signingStatus === SigningStatus.REJECTED && (
+            <PopoverHover
+              trigger={
+                <Badge variant="destructive">
+                  <AlertTriangle className="mr-1 h-3 w-3" />
+                  <Trans>Rejected</Trans>
+                </Badge>
+              }
+            >
+              <p className="text-sm">
+                <Trans>Reason for rejection: </Trans>
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">{recipient.rejectionReason}</p>
+            </PopoverHover>
+          )}
+
+        {envelope.status === DocumentStatus.PENDING &&
+          recipient.signingStatus === SigningStatus.NOT_SIGNED &&
+          recipient.role !== RecipientRole.CC &&
+          !isRecipientExpired(recipient) && (
+            <TooltipProvider>
+              <Tooltip open={shouldHighlightCopyButtons && isFirst}>
+                <TooltipTrigger asChild>
+                  <div
+                    className={shouldHighlightCopyButtons ? 'animate-pulse' : ''}
+                    onClick={() => setShouldHighlightCopyButtons(false)}
+                  >
+                    <CopyTextButton
+                      value={formatSigningLink(recipient.token)}
+                      onCopySuccess={() => {
+                        toast({
+                          title: _(msg`Copied to clipboard`),
+                          description: _(msg`The signing link has been copied to your clipboard.`),
+                        });
+                        setShouldHighlightCopyButtons(false);
+                      }}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent sideOffset={2}>
+                  <Trans>Copy Signing Links</Trans>
+                  <TooltipArrow className="fill-background" />
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+      </div>
+
+      {envelope.status !== DocumentStatus.DRAFT && (
+        <RecipientEngagementTimeline
+          recipientEmail={recipient.email}
+          openCount={engagement?.openCount ?? 0}
+          events={engagement?.events ?? []}
+          isLoading={isEngagementLoading}
+          hasMore={engagement?.hasMore ?? false}
+          trigger={
+            <RecipientEngagementBadge
+              isEnabled={isEnabled}
+              openCount={engagement?.openCount ?? 0}
+              firstOpenedAt={engagement?.firstOpenedAt ?? null}
+              lastOpenedAt={engagement?.lastOpenedAt ?? null}
+            />
+          }
+        />
+      )}
+    </li>
+  );
 };
 
 export const DocumentPageViewRecipients = ({
@@ -47,7 +246,6 @@ export const DocumentPageViewRecipients = ({
   documentRootPath,
 }: DocumentPageViewRecipientsProps) => {
   const { _, i18n } = useLingui();
-  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const recipients = envelope.recipients;
@@ -97,155 +295,14 @@ export const DocumentPageViewRecipients = ({
         )}
 
         {recipients.map((recipient, i) => (
-          <li key={recipient.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-            <AvatarWithText
-              avatarFallback={recipient.email.slice(0, 1).toUpperCase()}
-              primaryText={<p className="text-sm text-muted-foreground">{recipient.email}</p>}
-              secondaryText={
-                <p className="text-xs text-muted-foreground/70">
-                  {_(RECIPIENT_ROLES_DESCRIPTION[recipient.role].roleName)}
-                </p>
-              }
-            />
-
-            <div className="flex flex-row items-center">
-              {envelope.status !== DocumentStatus.DRAFT &&
-                recipient.signingStatus === SigningStatus.SIGNED && (
-                  <Badge variant="default">
-                    {match(recipient.role)
-                      .with(RecipientRole.APPROVER, () => (
-                        <>
-                          <CheckIcon className="mr-1 h-3 w-3" />
-                          <Trans>Approved</Trans>
-                        </>
-                      ))
-                      .with(RecipientRole.CC, () =>
-                        envelope.status === DocumentStatus.COMPLETED ? (
-                          <>
-                            <MailIcon className="mr-1 h-3 w-3" />
-                            <Trans>Sent</Trans>
-                          </>
-                        ) : (
-                          <>
-                            <CheckIcon className="mr-1 h-3 w-3" />
-                            <Trans>Ready</Trans>
-                          </>
-                        ),
-                      )
-
-                      .with(RecipientRole.SIGNER, () => (
-                        <>
-                          <SignatureIcon className="mr-1 h-3 w-3" />
-                          <Trans>Signed</Trans>
-                        </>
-                      ))
-                      .with(RecipientRole.VIEWER, () => (
-                        <>
-                          <MailOpenIcon className="mr-1 h-3 w-3" />
-                          <Trans>Viewed</Trans>
-                        </>
-                      ))
-                      .with(RecipientRole.ASSISTANT, () => (
-                        <>
-                          <UserIcon className="mr-1 h-3 w-3" />
-                          <Trans>Assisted</Trans>
-                        </>
-                      ))
-                      .exhaustive()}
-                  </Badge>
-                )}
-
-              {envelope.status !== DocumentStatus.DRAFT &&
-                recipient.signingStatus === SigningStatus.NOT_SIGNED &&
-                isRecipientExpired(recipient) && (
-                  <Badge variant="destructive">
-                    <Clock8Icon className="mr-1 h-3 w-3" />
-                    <Trans>Expired</Trans>
-                  </Badge>
-                )}
-
-              {envelope.status !== DocumentStatus.DRAFT &&
-                recipient.signingStatus === SigningStatus.NOT_SIGNED &&
-                !isRecipientExpired(recipient) &&
-                (recipient.expiresAt ? (
-                  <PopoverHover
-                    trigger={
-                      <Badge variant="secondary">
-                        <Clock className="mr-1 h-3 w-3" />
-                        <Trans>Pending</Trans>
-                      </Badge>
-                    }
-                  >
-                    <p className="text-xs text-muted-foreground">
-                      <Trans>
-                        Expires{' '}
-                        {recipient.expiresAt
-                          ? i18n.date(recipient.expiresAt, DateTime.DATETIME_MED)
-                          : 'N/A'}
-                      </Trans>
-                    </p>
-                  </PopoverHover>
-                ) : (
-                  <Badge variant="secondary">
-                    <Clock className="mr-1 h-3 w-3" />
-                    <Trans>Pending</Trans>
-                  </Badge>
-                ))}
-
-              {envelope.status !== DocumentStatus.DRAFT &&
-                recipient.signingStatus === SigningStatus.REJECTED && (
-                  <PopoverHover
-                    trigger={
-                      <Badge variant="destructive">
-                        <AlertTriangle className="mr-1 h-3 w-3" />
-                        <Trans>Rejected</Trans>
-                      </Badge>
-                    }
-                  >
-                    <p className="text-sm">
-                      <Trans>Reason for rejection: </Trans>
-                    </p>
-
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {recipient.rejectionReason}
-                    </p>
-                  </PopoverHover>
-                )}
-
-              {envelope.status === DocumentStatus.PENDING &&
-                recipient.signingStatus === SigningStatus.NOT_SIGNED &&
-                recipient.role !== RecipientRole.CC &&
-                !isRecipientExpired(recipient) && (
-                  <TooltipProvider>
-                    <Tooltip open={shouldHighlightCopyButtons && i === 0}>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={shouldHighlightCopyButtons ? 'animate-pulse' : ''}
-                          onClick={() => setShouldHighlightCopyButtons(false)}
-                        >
-                          <CopyTextButton
-                            value={formatSigningLink(recipient.token)}
-                            onCopySuccess={() => {
-                              toast({
-                                title: _(msg`Copied to clipboard`),
-                                description: _(
-                                  msg`The signing link has been copied to your clipboard.`,
-                                ),
-                              });
-                              setShouldHighlightCopyButtons(false);
-                            }}
-                          />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent sideOffset={2}>
-                        <Trans>Copy Signing Links</Trans>
-                        <TooltipArrow className="fill-background" />
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-            </div>
-          </li>
+          <RecipientListItem
+            key={recipient.id}
+            recipient={recipient}
+            envelope={envelope}
+            isFirst={i === 0}
+            shouldHighlightCopyButtons={shouldHighlightCopyButtons}
+            setShouldHighlightCopyButtons={setShouldHighlightCopyButtons}
+          />
         ))}
       </ul>
     </section>

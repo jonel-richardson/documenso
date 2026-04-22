@@ -45,6 +45,7 @@ export const ZUpdateOrganisationSettingsRequestSchema = z.object({
 
     // AI features settings.
     aiFeaturesEnabled: z.boolean().optional(),
+    engagementTrackingEnabled: z.boolean().optional(),
   }),
 });
 

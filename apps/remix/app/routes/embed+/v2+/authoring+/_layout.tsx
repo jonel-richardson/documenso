@@ -56,6 +56,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
     organisationClaim,
     preferences: {
       aiFeaturesEnabled: teamSettings.aiFeaturesEnabled,
+      engagementTrackingEnabled: teamSettings.engagementTrackingEnabled ?? true,
     },
   };
 };
@@ -118,6 +119,7 @@ export default function AuthoringLayout() {
     currentTeamRole: TeamMemberRole.MEMBER,
     preferences: {
       aiFeaturesEnabled: preferences.aiFeaturesEnabled,
+      engagementTrackingEnabled: preferences.engagementTrackingEnabled,
     },
   };
 

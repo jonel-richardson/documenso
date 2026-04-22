@@ -12,6 +12,7 @@ import { updateEnvelopeRecipients } from '@documenso/lib/server-only/recipient/u
 import { ZGenericSuccessResponse, ZSuccessResponseSchema } from '../schema';
 import { authenticatedProcedure, procedure, router } from '../trpc';
 import { findRecipientSuggestionsRoute } from './find-recipient-suggestions';
+import { getEngagementRoute } from './get-engagement';
 import {
   ZCompleteDocumentWithTokenMutationSchema,
   ZCreateDocumentRecipientRequestSchema,
@@ -45,6 +46,11 @@ export const recipientRouter = router({
   suggestions: {
     find: findRecipientSuggestionsRoute,
   },
+
+  /**
+   * @public
+   */
+  getEngagement: getEngagementRoute,
 
   /**
    * @public

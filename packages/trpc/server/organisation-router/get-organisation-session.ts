@@ -89,6 +89,7 @@ export const getOrganisationSession = async ({
           currentTeamRole: getHighestTeamRoleInGroup(team.teamGroups),
           preferences: {
             aiFeaturesEnabled: derivedSettings.aiFeaturesEnabled,
+            engagementTrackingEnabled: derivedSettings.engagementTrackingEnabled,
           },
         };
       }),

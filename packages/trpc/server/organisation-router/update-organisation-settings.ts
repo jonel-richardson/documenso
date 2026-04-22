@@ -55,6 +55,7 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
 
       // AI features settings.
       aiFeaturesEnabled,
+      engagementTrackingEnabled,
     } = data;
 
     if (Object.values(data).length === 0) {
@@ -168,6 +169,7 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
 
             // AI features settings.
             aiFeaturesEnabled,
+            engagementTrackingEnabled,
           },
         },
       },
