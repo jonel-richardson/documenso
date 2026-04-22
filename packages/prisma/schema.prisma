@@ -600,9 +600,13 @@ model Recipient {
   readStatus           ReadStatus    @default(NOT_OPENED)
   signingStatus        SigningStatus @default(NOT_SIGNED)
   sendStatus           SendStatus    @default(NOT_SENT)
+  openCount            Int           @default(0)
+  firstOpenedAt        DateTime?
+  lastOpenedAt         DateTime?
   envelope             Envelope      @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
   fields               Field[]
   signatures           Signature[]
+  viewEvents           RecipientViewEvent[]
 
   @@index([token])
   @@index([email])
@@ -867,6 +871,8 @@ model OrganisationGlobalSettings {
 
   reminderSettings Json? /// [EnvelopeReminderSettings] @zod.custom.use(ZEnvelopeReminderSettingsSchema)
 
+  engagementTrackingEnabled Boolean @default(true)
+
   // AI features settings.
   aiFeaturesEnabled Boolean @default(false)
 }
@@ -907,6 +913,8 @@ model TeamGlobalSettings {
   envelopeExpirationPeriod Json? /// [EnvelopeExpirationPeriod] @zod.custom.use(ZEnvelopeExpirationPeriodSchema)
 
   reminderSettings Json? /// [EnvelopeReminderSettings] @zod.custom.use(ZEnvelopeReminderSettingsSchema)
+
+  engagementTrackingEnabled Boolean?
 
   // AI features settings.
   aiFeaturesEnabled Boolean?
@@ -1120,4 +1128,14 @@ model RateLimit {
 
   @@id([key, action, bucket])
   @@index([createdAt])
+}
+
+model RecipientViewEvent {
+  id          String   @id @default(cuid())
+  recipientId Int
+  viewedAt    DateTime @default(now())
+
+  recipient   Recipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, viewedAt])
 }

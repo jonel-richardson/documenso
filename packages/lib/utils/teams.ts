@@ -210,6 +210,8 @@ export const generateDefaultTeamSettings = (): Omit<TeamGlobalSettings, 'id' | '
 
     reminderSettings: null,
 
+    engagementTrackingEnabled: null,
+
     aiFeaturesEnabled: null,
   };
 };

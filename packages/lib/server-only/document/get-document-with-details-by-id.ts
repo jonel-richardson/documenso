@@ -2,6 +2,7 @@ import { EnvelopeType } from '@prisma/client';
 
 import { type EnvelopeIdOptions, mapSecondaryIdToDocumentId } from '../../utils/envelope';
 import { getEnvelopeById } from '../envelope/get-envelope-by-id';
+import { getTeamSettings } from '../team/get-team-settings';
 
 export type GetDocumentWithDetailsByIdOptions = {
   id: EnvelopeIdOptions;
@@ -19,6 +20,10 @@ export const getDocumentWithDetailsById = async ({
     type: EnvelopeType.DOCUMENT,
     userId,
     teamId,
+  });
+
+  const settings = await getTeamSettings({
+    teamId: envelope.teamId,
   });
 
   const legacyDocumentId = mapSecondaryIdToDocumentId(envelope.secondaryId);
@@ -56,6 +61,12 @@ export const getDocumentWithDetailsById = async ({
       ...recipient,
       documentId: legacyDocumentId,
       templateId: null,
+      engagement: {
+        openCount: settings.engagementTrackingEnabled === false ? 0 : recipient.openCount,
+        firstOpenedAt:
+          settings.engagementTrackingEnabled === false ? null : recipient.firstOpenedAt,
+        lastOpenedAt: settings.engagementTrackingEnabled === false ? null : recipient.lastOpenedAt,
+      },
     })),
     documentDataId: firstDocumentData.id,
     documentMeta: {

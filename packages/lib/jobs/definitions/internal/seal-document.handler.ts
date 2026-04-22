@@ -98,11 +98,13 @@ export const run = async ({
       teamId: envelope.teamId,
     });
 
-    // Ensure all CC recipients are marked as signed
+    // Ensure all remaining non-rejected recipients (e.g. CC) are marked as signed
     await prisma.recipient.updateMany({
       where: {
         envelopeId: envelope.id,
-        role: RecipientRole.CC,
+        signingStatus: {
+          notIn: [SigningStatus.SIGNED, SigningStatus.REJECTED],
+        },
       },
       data: {
         signingStatus: SigningStatus.SIGNED,
