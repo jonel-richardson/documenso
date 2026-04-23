@@ -40,6 +40,7 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
       delegateDocumentOwnership,
       envelopeExpirationPeriod,
       reminderSettings,
+      engagementTrackingEnabled,
 
       // Branding related settings.
       brandingEnabled,
@@ -153,6 +154,7 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
             envelopeExpirationPeriod:
               envelopeExpirationPeriod === null ? Prisma.DbNull : envelopeExpirationPeriod,
             reminderSettings: reminderSettings === null ? Prisma.DbNull : reminderSettings,
+            engagementTrackingEnabled,
 
             // Branding related settings.
             brandingEnabled,

@@ -7,6 +7,12 @@ import { UserSchema } from '@documenso/prisma/generated/zod/modelSchema/UserSche
 import { zEmail } from '../utils/zod';
 import { ZFieldSchema } from './field';
 
+export const ZRecipientEngagementSchema = z.object({
+  openCount: z.number(),
+  firstOpenedAt: z.date().nullable(),
+  lastOpenedAt: z.date().nullable(),
+});
+
 /**
  * The full recipient response schema.
  *
@@ -32,6 +38,11 @@ export const ZRecipientSchema = RecipientSchema.pick({
   rejectionReason: true,
 }).extend({
   fields: ZFieldSchema.array(),
+  engagement: ZRecipientEngagementSchema.default({
+    openCount: 0,
+    firstOpenedAt: null,
+    lastOpenedAt: null,
+  }),
 
   // Backwards compatibility.
   documentId: z.number().nullish(),
@@ -60,6 +71,11 @@ export const ZRecipientLiteSchema = RecipientSchema.pick({
   signingOrder: true,
   rejectionReason: true,
 }).extend({
+  engagement: ZRecipientEngagementSchema.default({
+    openCount: 0,
+    firstOpenedAt: null,
+    lastOpenedAt: null,
+  }),
   // Backwards compatibility.
   documentId: z.number().nullish(),
   templateId: z.number().nullish(),
@@ -129,3 +145,9 @@ export const ZRecipientEmailSchema = z.union([
   z.literal(''),
   zEmail('Invalid email').trim().toLowerCase().max(254),
 ]);
+
+export type TRecipientEngagement = {
+  openCount: number;
+  firstOpenedAt: Date | null;
+  lastOpenedAt: Date | null;
+};

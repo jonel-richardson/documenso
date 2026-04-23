@@ -97,3 +97,11 @@ export const fileUploadRateLimit = createRateLimit({
   max: 20,
   window: '1m',
 });
+
+// ---- Feature Specific (Tier 3 - Contextual) ----
+
+export const recipientEngagementTimelineRateLimit = createRateLimit({
+  action: 'api.recipient-engagement-timeline',
+  max: 30, // Max 30 requests per minute
+  window: '1m',
+});

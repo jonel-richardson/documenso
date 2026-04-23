@@ -55,28 +55,38 @@ export const viewedDocument = async ({
     }),
   });
 
-  // Early return if already opened.
-  if (recipient.readStatus === ReadStatus.OPENED) {
-    return;
-  }
+  const isFirstOpen = recipient.readStatus !== ReadStatus.OPENED;
 
   await prisma.$transaction(async (tx) => {
+    await tx.recipientViewEvent.create({
+      data: {
+        recipientId: recipient.id,
+      },
+    });
+
     await tx.recipient.update({
       where: {
         id: recipient.id,
       },
       data: {
-        // This handles cases where distribution is done manually
-        sendStatus: SendStatus.SENT,
-        readStatus: ReadStatus.OPENED,
-        // Only set sentAt if not already set (email may have been sent before they opened).
-        ...(!recipient.sentAt ? { sentAt: new Date() } : {}),
+        openCount: {
+          increment: 1,
+        },
+        firstOpenedAt: recipient.firstOpenedAt ?? new Date(),
+        lastOpenedAt: new Date(),
+        ...(isFirstOpen
+          ? {
+              sendStatus: SendStatus.SENT,
+              readStatus: ReadStatus.OPENED,
+              ...(!recipient.sentAt ? { sentAt: new Date() } : {}),
+            }
+          : {}),
       },
     });
 
     await tx.documentAuditLog.create({
       data: createDocumentAuditLogData({
-        type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_OPENED,
+        type: DOCUMENT_AUDIT_LOG_TYPE.RECIPIENT_VIEW_RECORDED,
         envelopeId: recipient.envelopeId,
         user: {
           name: recipient.name,
@@ -92,7 +102,32 @@ export const viewedDocument = async ({
         },
       }),
     });
+
+    if (isFirstOpen) {
+      await tx.documentAuditLog.create({
+        data: createDocumentAuditLogData({
+          type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_OPENED,
+          envelopeId: recipient.envelopeId,
+          user: {
+            name: recipient.name,
+            email: recipient.email,
+          },
+          requestMetadata,
+          data: {
+            recipientEmail: recipient.email,
+            recipientId: recipient.id,
+            recipientName: recipient.name,
+            recipientRole: recipient.role,
+            accessAuth: recipientAccessAuth ?? [],
+          },
+        }),
+      });
+    }
   });
+
+  if (!isFirstOpen) {
+    return;
+  }
 
   // Don't schedule reminders for manually distributed documents —
   // there's no email pathway to send them through.

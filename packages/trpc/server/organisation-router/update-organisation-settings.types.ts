@@ -30,6 +30,7 @@ export const ZUpdateOrganisationSettingsRequestSchema = z.object({
     delegateDocumentOwnership: z.boolean().nullish(),
     envelopeExpirationPeriod: ZEnvelopeExpirationPeriod.optional(),
     reminderSettings: ZEnvelopeReminderSettings.optional(),
+    engagementTrackingEnabled: z.boolean().optional(),
 
     // Branding related settings.
     brandingEnabled: z.boolean().optional(),

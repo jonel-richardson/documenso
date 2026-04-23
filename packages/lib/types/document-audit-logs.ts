@@ -41,6 +41,8 @@ export const ZDocumentAuditLogTypeSchema = z.enum([
   'DOCUMENT_META_UPDATED', // When the document meta data is updated.
   'DOCUMENT_OPENED', // When the document is opened by a recipient.
   'DOCUMENT_VIEWED', // When the document is viewed by a recipient.
+  'RECIPIENT_VIEW_RECORDED', // When a recipient explicitly view event is tracked for engagement.
+  'ENGAGEMENT_DATA_VIEWED_BY_SENDER', // When a sender views a recipient's engagement timeline.
   'DOCUMENT_RECIPIENT_REJECTED', // When a recipient rejects the document.
   'DOCUMENT_RECIPIENT_COMPLETED', // When a recipient completes all their required tasks for the document.
   'DOCUMENT_RECIPIENT_EXPIRED', // When a recipient's signing window expires.
@@ -543,6 +545,32 @@ export const ZDocumentAuditLogEventDocumentViewedSchema = z.object({
 });
 
 /**
+ * Event: Recipient view recorded.
+ */
+export const ZDocumentAuditLogEventRecipientViewRecordedSchema = z.object({
+  type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.RECIPIENT_VIEW_RECORDED),
+  data: ZBaseRecipientDataSchema.extend({
+    accessAuth: z.preprocess((unknownValue) => {
+      if (!unknownValue) {
+        return [];
+      }
+
+      return Array.isArray(unknownValue) ? unknownValue : [unknownValue];
+    }, z.array(ZRecipientAccessAuthTypesSchema)),
+  }),
+});
+
+/**
+ * Event: Engagement data viewed by sender.
+ */
+export const ZDocumentAuditLogEventEngagementDataViewedBySenderSchema = z.object({
+  type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.ENGAGEMENT_DATA_VIEWED_BY_SENDER),
+  data: z.object({
+    recipientId: z.number(),
+  }),
+});
+
+/**
  * Event: Document recipient completed the document (the recipient has fully actioned and completed their required steps for the document).
  */
 export const ZDocumentAuditLogEventDocumentRecipientCompleteSchema = z.object({
@@ -787,6 +815,8 @@ export const ZDocumentAuditLogSchema = ZDocumentAuditLogBaseSchema.and(
     ZDocumentAuditLogEventRecipientUpdatedSchema,
     ZDocumentAuditLogEventRecipientRemovedSchema,
     ZDocumentAuditLogEventRecipientExpiredSchema,
+    ZDocumentAuditLogEventRecipientViewRecordedSchema,
+    ZDocumentAuditLogEventEngagementDataViewedBySenderSchema,
   ]),
 );
 
